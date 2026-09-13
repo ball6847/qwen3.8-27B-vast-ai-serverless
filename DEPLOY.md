@@ -75,12 +75,11 @@ exits before the PyWorker bootstrap — so nothing registers with VAST and the
 instance is just a normal vLLM box. Access it on whatever host port maps to
 `:18000`.
 
-> **Auth:** upstream vLLM binds `0.0.0.0` and is **unauthenticated unless a key
-> is set**. Under `SERVERLESS=1` that is fine (vLLM is loopback-only behind
-> PyWorker's gateway, which is why the injected key is stripped). Under
-> `SERVERLESS=0` vLLM is the public face, so the script *keeps* the
-> platform-injected `VLLM_API_KEY` instead of unsetting it, and warns if none
-> is present. Pass `-e VLLM_API_KEY=<secret>` on a plain instance you expose.
+> **Auth:** plain mode keeps the platform-injected `VLLM_API_KEY` rather than
+> stripping it (under `SERVERLESS=1` it is stripped, because PyWorker talks to
+> vLLM without an `Authorization` header). Pass `-e VLLM_API_KEY=<secret>` on a
+> plain instance you expose — with no key, vLLM serves unauthenticated. See the
+> [API key](README.md#api-key) section in README.md.
 
 ## 1. Prerequisites
 
