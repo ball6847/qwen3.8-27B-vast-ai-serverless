@@ -16,6 +16,10 @@ ENV PORT=18000
 #    to 0 explicitly so nothing re-enables the fast-but-silent path.
 ENV HF_XET_HIGH_PERFORMANCE=0 HF_HUB_DISABLE_XET=1
 
+# Default to serverless mode. Set SERVERLESS=0 to boot vLLM alone (no PyWorker)
+# for a plain instance -- onstart.sh reads this and skips the worker entirely.
+ENV SERVERLESS=1
+
 EXPOSE 18000
 
 # --- 3. Pre-baked PyWorker ----------------------------------------------------

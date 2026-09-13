@@ -59,6 +59,29 @@ visible download progress bar, and a pre-baked PyWorker tree at `/opt/pyw`
 (code + venv + nltk corpus) so boot skips clone/install. Keep `PYWORKER_SHA`
 in the Dockerfile and `onstart.sh` in sync.
 
+### Running as a plain (non-serverless) instance
+
+`onstart.sh` takes a `SERVERLESS` toggle. It defaults to `1` (serverless
+worker: vLLM + PyWorker). Set `SERVERLESS=0` to boot vLLM alone and skip
+PyWorker entirely:
+
+```bash
+# plain instance: vLLM only, no PyWorker, no :3000 gateway
+-e SERVERLESS=0
+```
+
+With `SERVERLESS=0` the script starts vLLM on `:18000`, prints a note, and
+exits before the PyWorker bootstrap — so nothing registers with VAST and the
+instance is just a normal vLLM box. Access it on whatever host port maps to
+`:18000`.
+
+> **Auth:** upstream vLLM binds `0.0.0.0` and is **unauthenticated unless a key
+> is set**. Under `SERVERLESS=1` that is fine (vLLM is loopback-only behind
+> PyWorker's gateway, which is why the injected key is stripped). Under
+> `SERVERLESS=0` vLLM is the public face, so the script *keeps* the
+> platform-injected `VLLM_API_KEY` instead of unsetting it, and warns if none
+> is present. Pass `-e VLLM_API_KEY=<secret>` on a plain instance you expose.
+
 ## 1. Prerequisites
 
 - Vast.ai account with CLI access (`vastai show user` succeeds;
