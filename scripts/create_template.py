@@ -79,11 +79,10 @@ MODES = {
         # onstart would have to start vLLM itself, detaching it from the log.
         "runtype": "args", "onstart": False,
         "use_ssh": False, "ssh_direct": False,
-        # 80 GB, matching the proven plain templates (678479/679287). Boot needs
-        # the 10 GB image + ~19.5 GB of weights + venv, and the volume also
-        # holds HF cache state; 50 fits but leaves little headroom for a second
-        # CTX tier being re-downloaded.
-        "disk": 80.0,
+        # 50 GB. prepare.sh needs ~22 GB of weights (19.5 base + ~1 fast
+        # variant + ~1 DFlash2 drafter) plus its requant outputs, on top of the
+        # ~10 GB image; 50 leaves ample headroom.
+        "disk": 50.0,
         "href": "https://github.com/ball6847/qwen3.8-27b-vast-ai-serverless",
         "repo": "ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless",
         # No :3000 and no PyWorker env: nothing registers with VAST, so this is

@@ -74,7 +74,7 @@ fetch, then engine load — is trackable with `vastai logs <INSTANCE_ID>`.
 ```bash
 python3 scripts/create_template.py --plain
 # -> image ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless:latest
-#    env   -p 18000:18000 -e CTX=long -e PREFIX_CACHE=1, disk 80 GB
+#    env   -p 18000:18000 -e CTX=long -e PREFIX_CACHE=1, disk 50 GB
 #    record the printed id + hash; the hash changes on every recreate
 ```
 
