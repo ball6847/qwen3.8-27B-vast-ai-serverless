@@ -74,8 +74,8 @@ Endpoint lookup is per-account: a key belonging to another account returns
 ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless:latest
 ```
 
-Extends `ghcr.io/syv-ai/qwen38-27b-rtx3090` (vLLM 0.28.0, torch 2.13, CUDA
-13.0) with three cold-start changes:
+Extends [`ghcr.io/syv-ai/qwen38-27b-rtx3090`](https://github.com/syv-ai/qwen38-27b-rtx3090)
+(vLLM 0.28.0, torch 2.13, CUDA 13.0) with three cold-start changes:
 
 1. **vLLM on `:18000`** — the port PyWorker targets, so the socat relay the
    upstream image needs is gone.
@@ -113,3 +113,17 @@ Keep `PYWORKER_SHA` in sync between `Dockerfile` and `onstart.sh`.
 | `scripts/create_template.py` | Creates the Vast template |
 | `scripts/watch_boot.py` | Watches a boot to completion, rotates stalled hosts |
 | `scripts/test_endpoint.py` | End-to-end smoke test through the proxy |
+
+## Credits
+
+The serving image this repo derives from — the quantized Qwen3.8-27B weights,
+the vLLM patches, requant scripts and benchmarks behind the ~1,000 tok/s at 64
+concurrent figure — is the work of **[syv-ai](https://github.com/syv-ai)**:
+
+- Repository: <https://github.com/syv-ai/qwen38-27b-rtx3090>
+- Base image: [`ghcr.io/syv-ai/qwen38-27b-rtx3090`](https://github.com/syv-ai/qwen38-27b-rtx3090/pkgs/container/qwen38-27b-rtx3090)
+- Licence: Apache-2.0
+
+This repo adds only the Vast.ai serverless packaging on top (port `:18000`,
+Xet disabled, pre-baked PyWorker). All credit for the model serving work
+belongs upstream — please star and support the original project.
