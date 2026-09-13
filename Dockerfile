@@ -5,6 +5,19 @@
 #   3. PyWorker code + venv baked in -> boot skips git clone + pip install
 FROM ghcr.io/syv-ai/qwen38-27b-rtx3090:latest
 
+# Re-point the OCI provenance labels at THIS repo. The upstream image sets
+# org.opencontainers.image.source=https://github.com/syv-ai/qwen38-27b-rtx3090,
+# and GitHub links a GHCR package to a repository by reading exactly that label.
+# Without these overrides the derived image keeps the upstream source, GHCR
+# cannot match it to a repo you own, and the package stays user-scoped -- which
+# means it does NOT inherit repo visibility (so a public repo still yielded a
+# private, anonymous-401 package). With source set here, the package links to
+# this repo and tracks its visibility.
+LABEL org.opencontainers.image.source="https://github.com/ball6847/qwen3.8-27B-vast-ai-serverless" \
+      org.opencontainers.image.title="qwen3.8-27b serverless (RTX 3090)" \
+      org.opencontainers.image.description="Derived serving image: vLLM on :18000 for Vast PyWorker, Xet disabled for visible weight-download progress, PyWorker + venv + nltk corpus pre-baked for fast cold starts." \
+      org.opencontainers.image.licenses="Apache-2.0"
+
 # 1. vLLM listens where PyWorker looks (vast-pyworker workers/openai/core.py
 #    MODEL_SERVER_PORT=18000). single-user/start_qwen.sh reads PORT=${PORT:-18020},
 #    so this one env var moves the listener and the socat relay becomes dead code.
