@@ -5,6 +5,7 @@ Usage:
     watch_boot.py <instance_id> [max_minutes] [template_hash]
 
 Environment overrides:
+    VAST_API_KEY      Vast API key (takes precedence)
     VAST_API_KEY_PATH  default ~/.config/vastai/vast_api_key
     WATCH_EXCLUDE_FILE default /tmp/excluded_hosts.txt  (host/machine ids never to reuse)
 
@@ -40,13 +41,24 @@ ID_ = int(sys.argv[1])
 MAXMIN = float(sys.argv[2] if len(sys.argv) > 2 else 15)
 TPL_HASH = sys.argv[3] if len(sys.argv) > 3 else os.environ.get('WATCH_TEMPLATE_HASH', '')
 KEY_PATH = os.path.expanduser(os.environ.get('VAST_API_KEY_PATH', '~/.config/vastai/vast_api_key'))
+
+
+def get_key():
+    """$VAST_API_KEY wins, then VAST_API_KEY_PATH / the default key file."""
+    key = os.environ.get('VAST_API_KEY')
+    if key:
+        return key.strip()
+    try:
+        return open(KEY_PATH).read().strip()
+    except OSError:
+        sys.exit(f"No Vast API key: set $VAST_API_KEY or write {KEY_PATH}")
 EXCL_FILE = os.environ.get('WATCH_EXCLUDE_FILE', '/tmp/excluded_hosts.txt')
 STALL_LIMIT = 480                      # seconds of zero progress before rotating
 OPENAI_BASE = 'https://console.vast.ai'
 LABEL = 'sl-boot-test4'
 DISK_GB = '50'
 
-KEY = open(KEY_PATH).read().strip()
+KEY = get_key()
 SSH_OPTS = ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'BatchMode=yes',
             '-o', 'ConnectTimeout=15', '-o', 'LogLevel=SILENT']
 # One round trip inside the instance: vLLM health, pyworker gateway, vllm.log size.

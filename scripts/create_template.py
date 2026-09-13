@@ -10,7 +10,8 @@ Template PUT is broken server-side, so every change is delete + recreate;
 the hash changes each time - record the printed id + hash.
 
 Asserts pure-ASCII onstart before POST (non-ASCII delivery corrupts).
-Stdlib only. Key read from ~/.config/vastai/vast_api_key.
+Stdlib only. Key read from $VAST_API_KEY, else
+~/.config/vastai/vast_api_key (override the path with VAST_API_KEY_PATH).
 """
 import json
 import os
@@ -44,7 +45,19 @@ DESC = ("Serverless variant of qwen38-27b-rtx3090-single. Derived image serves "
         "min_load=0, cold_workers=0, positive inactivity_timeout.")
 ONSTART_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "..", "onstart.sh")
-KEY_PATH = os.path.expanduser("~/.config/vastai/vast_api_key")
+KEY_PATH = os.path.expanduser(os.environ.get("VAST_API_KEY_PATH",
+                                             "~/.config/vastai/vast_api_key"))
+
+
+def get_key():
+    """$VAST_API_KEY wins, then VAST_API_KEY_PATH / the default key file."""
+    key = os.environ.get("VAST_API_KEY")
+    if key:
+        return key.strip()
+    try:
+        return open(KEY_PATH).read().strip()
+    except OSError:
+        sys.exit(f"No Vast API key: set $VAST_API_KEY or write {KEY_PATH}")
 
 
 def api(path, data=None, method="GET"):
@@ -62,7 +75,7 @@ def api(path, data=None, method="GET"):
         sys.exit(1)
 
 
-KEY = open(KEY_PATH).read().strip()
+KEY = get_key()
 onstart = open(ONSTART_PATH).read()
 assert onstart.isascii(), "onstart.sh must be pure ASCII - fix before POST"
 

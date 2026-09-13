@@ -64,7 +64,20 @@ RUN set -eux; \
         "vastai==1.6.0"
 
 # workers/openai/core.py runs nltk.download("words") at import, which is a network
-# call on every boot. Pre-seed it; NLTK_DATA is exported at boot by onstart.sh.
+# call on every boot. Pre-seed it into /opt/pyw, NOT the default $HOME/nltk_data
+# (= /cache/nltk_data), because /cache is a VOLUME and would shadow it at runtime.
+#
+# NLTK_DATA is the mechanism that works here: with it set, nltk.data.path[0] is
+# /opt/pyw/nltk_data and download() writes there. Do NOT reach for
+# download_dir= -- nltk's pathsec check rejects it ("Unauthorized path"), since
+# the target must sit under one of the allowed roots. NLTK_DATA is also set as an
+# image env var so the runtime read path matches; onstart.sh exports it too.
+ENV NLTK_DATA=/opt/pyw/nltk_data
+
 RUN set -eux; \
+    mkdir -p /opt/pyw/nltk_data; \
+    rm -rf /cache/nltk_data; \
     NLTK_DATA=/opt/pyw/nltk_data /opt/pyw/worker-env/bin/python -c \
-        "import nltk; nltk.download('words', quiet=True)"
+        "import nltk; nltk.download('words', quiet=True)"; \
+    test -f /opt/pyw/nltk_data/corpora/words/en; \
+    test ! -e /cache/nltk_data

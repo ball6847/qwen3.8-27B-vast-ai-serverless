@@ -8,7 +8,9 @@ Usage:
     test_endpoint.py [message] [max_tokens]
 
 Env:
-    VAST_API_KEY      Vast API key (default: read ~/.config/vastai/vast_api_key)
+    VAST_API_KEY      Vast API key (also accepts VAST_API_KEY_PATH)
+    VAST_API_KEY_PATH override the key-file path (default
+                      ~/.config/vastai/vast_api_key)
     ENDPOINT_NAME     default qwen38-27b-sl
 
 Exit codes: 0 served a real completion, 1 HTTP/API error, 2 timeout.
@@ -26,10 +28,16 @@ TIMEOUT = int(os.environ.get("ENDPOINT_TIMEOUT", "570"))
 
 
 def get_key():
+    """$VAST_API_KEY wins, then VAST_API_KEY_PATH / the default key file."""
     key = os.environ.get("VAST_API_KEY")
     if key:
         return key.strip()
-    return open(os.path.expanduser("~/.config/vastai/vast_api_key")).read().strip()
+    path = os.path.expanduser(os.environ.get("VAST_API_KEY_PATH",
+                                             "~/.config/vastai/vast_api_key"))
+    try:
+        return open(path).read().strip()
+    except OSError:
+        sys.exit(f"No Vast API key: set $VAST_API_KEY or write {path}")
 
 
 def post(path, payload):
