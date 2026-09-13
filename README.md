@@ -92,6 +92,24 @@ docker push ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless:latest
 
 Keep `PYWORKER_SHA` in sync between `Dockerfile` and `onstart.sh`.
 
+### Host requirements: driver 580+ (CUDA 13)
+
+The image ships CUDA 13.0 (`torch 2.13.0+cu130`). **CUDA 13.x requires an NVIDIA
+driver of 580 or newer**, so rent hosts whose *CUDA* column reads **13.0+** —
+the Vast offer list shows a `cuda_max_good` value, which tracks the host driver,
+not the toolkit.
+
+On an older host (e.g. driver 570 / `cuda_max_good: 12.8`) `torch.cuda.is_available()`
+is False and the boot **restart-loops**: upstream `verify.sh` FAILs with
+`torch cannot see a CUDA GPU`, `entrypoint.sh` exits 1 on that FAIL, and Vast
+restarts the container — re-running `verify` each time, with no `PASS`-only exit.
+If you see the same patch/model check block repeating in `vastai logs`, that is
+the signature; check the `CUDA` column before blaming the image.
+
+`scripts/create_template.py` pins `"cuda_max_good": {"gte": 13.0}` in
+`extra_filters`. That only pre-filters the GUI's offer search — it does **not**
+block renting an ineligible offer by hand, so confirm the column yourself.
+
 ## Environment
 
 | Variable | Default | Purpose |

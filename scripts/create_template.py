@@ -40,8 +40,19 @@ BASE = "https://console.vast.ai/api/v0"
 IMAGE = "ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless"
 TAG = "latest"
 RUNTYPE_SSH = "ssh"  # ssh runtype suppresses the image entrypoint; onstart drives all
+# cuda_max_good is the HIGHEST CUDA version the host driver supports (it tracks
+# the driver, not the toolkit). The image is CUDA 13.0 (torch 2.13.0+cu130), and
+# CUDA 13.x mandates driver >= 580 -- so without this clause Vast will happily
+# schedule onto a 570/12.8 box where `torch.cuda.is_available()` is False.
+# verify.sh then FAILs ("torch cannot see a CUDA GPU"), entrypoint.sh exits 1,
+# and the container restart-loops forever, re-running verify on every boot.
+#
+# NOTE: extra_filters only pre-filters the offer list the GUI searches; it does
+# NOT hard-block renting an ineligible offer by hand. Confirm CUDA >= 13.0 if
+# you pick an offer manually.
 EXTRA_FILTERS = {"verified": {"eq": True}, "external": {"eq": False},
-                 "rentable": {"eq": True}, "direct_port_count": {"gte": 2}}
+                 "rentable": {"eq": True}, "direct_port_count": {"gte": 2},
+                 "cuda_max_good": {"gte": 13.0}}
 
 # Per-mode overrides. SERVERLESS is read by onstart.sh, not by the image; the
 # -p flag publishes the port the mode actually listens on. The image sets

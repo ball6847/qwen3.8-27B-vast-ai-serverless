@@ -35,6 +35,15 @@ ENV SERVERLESS=1
 
 EXPOSE 18000
 
+# --- 1b. Host requirement -----------------------------------------------------
+# The upstream image is CUDA 13.0 (torch 2.13.0+cu130). CUDA 13.x mandates
+# NVIDIA driver >= 580. On an older host torch.cuda.is_available() is False and
+# verify.sh FAILs ("torch cannot see a CUDA GPU"); entrypoint.sh exits 1 on that
+# FAIL and Vast restart-loops the container. Rent hosts with cuda_max_good >= 13
+# (see the CUDA column in the Vast offer list). No image change can relax this --
+# it is a runtime driver coupling, recorded here so the constraint is visible
+# next to the version of CUDA that imposes it.
+
 # --- 3. Pre-baked PyWorker ----------------------------------------------------
 # start_server.sh skips clone/venv/pip entirely when both SERVER_DIR and ENV_PATH
 # already exist (it only activates the venv). Baking them removes a git clone and
