@@ -96,7 +96,7 @@ Keep `PYWORKER_SHA` in sync between `Dockerfile` and `onstart.sh`.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `SERVERLESS` | `1` | `1` = vLLM + PyWorker; `0` = vLLM only (also accepts `false`/`no`/`off`; anything unrecognized falls back to `1`) |
+| `SERVERLESS` | `1` | Only read by `onstart.sh` (`runtype=ssh` templates). `1` = vLLM + PyWorker; `0` = vLLM only (also accepts `false`/`no`/`off`; anything unrecognized falls back to `1`). The `--plain` template ignores it entirely — it uses `runtype=args`, so the image's Docker entrypoint runs and `onstart.sh` never executes. |
 | `VLLM_API_KEY` | injected by Vast | Bearer token. Stripped under `SERVERLESS=1`, kept under `SERVERLESS=0`. |
 | `PORT` | `18000` | vLLM listen port (image default) |
 | `CTX` | `fast` (image); template sets `long` | Context tier (`fast` / `long` / `huge`) |
@@ -110,7 +110,7 @@ Keep `PYWORKER_SHA` in sync between `Dockerfile` and `onstart.sh`.
 | `Dockerfile` | Derived image (port, Xet, pre-baked PyWorker) |
 | `onstart.sh` | Boot script; `SERVERLESS` toggle lives here |
 | `DEPLOY.md` | Template → endpoint → workergroup → verify |
-| `scripts/create_template.py` | Creates the Vast template |
+| `scripts/create_template.py` | Creates the Vast template (`--plain` for non-serverless) |
 | `scripts/watch_boot.py` | Watches a boot to completion, rotates stalled hosts |
 | `scripts/test_endpoint.py` | End-to-end smoke test through the proxy |
 

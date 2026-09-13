@@ -61,19 +61,38 @@ in the Dockerfile and `onstart.sh` in sync.
 
 ### Running as a plain (non-serverless) instance
 
-`onstart.sh` takes a `SERVERLESS` toggle. It defaults to `1` (serverless
-worker: vLLM + PyWorker). Set `SERVERLESS=0` to boot vLLM alone and skip
-PyWorker entirely:
+There are two ways to reach plain mode, and which you want depends on whether
+you need to see vLLM's output.
+
+**A. The plain template (recommended).** `scripts/create_template.py --plain`
+creates one with `runtype=args` and an **empty onstart**, so the image's own
+Docker `ENTRYPOINT` (`bash docker/entrypoint.sh single`) runs
+`single-user/start_qwen.sh` in the foreground with no redirection. vLLM's
+stdout reaches the container log, so boot progress — the ~19.5 GB weight
+fetch, then engine load — is trackable with `vastai logs <INSTANCE_ID>`.
 
 ```bash
-# plain instance: vLLM only, no PyWorker, no :3000 gateway
+python3 scripts/create_template.py --plain
+# -> image ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless:latest
+#    env   -p 18000:18000 -e CTX=long -e PREFIX_CACHE=1, disk 80 GB
+#    record the printed id + hash; the hash changes on every recreate
+```
+
+**B. `SERVERLESS=0` on a `runtype=ssh` template.** `onstart.sh` also takes a
+`SERVERLESS` toggle (defaults to `1`). Set `SERVERLESS=0` and it starts vLLM
+alone, prints a note, and exits before the PyWorker bootstrap:
+
+```bash
 -e SERVERLESS=0
 ```
 
-With `SERVERLESS=0` the script starts vLLM on `:18000`, prints a note, and
-exits before the PyWorker bootstrap — so nothing registers with VAST and the
-instance is just a normal vLLM box. Access it on whatever host port maps to
-`:18000`.
+> **Tradeoff:** under `runtype=ssh` Vast replaces the image ENTRYPOINT, so
+> onstart starts vLLM itself as `nohup ... >/var/log/portal/vllm.log 2>&1 &`.
+> That file is what PyWorker tails for its readiness marker, so it is fine for
+> `SERVERLESS=1` — but in plain mode **nothing reads it**, and vLLM's output is
+> not in the container log. Use (A) unless you specifically need ssh.
+
+Either way, access vLLM on whatever host port maps to `:18000`.
 
 > **Auth:** plain mode keeps the platform-injected `VLLM_API_KEY` rather than
 > stripping it (under `SERVERLESS=1` it is stripped, because PyWorker talks to
@@ -119,6 +138,12 @@ grep -nP '[^\x00-\x7F]' onstart.sh && echo "FIX NON-ASCII FIRST" || echo "ASCII 
 python3 scripts/create_template.py "[optional desc suffix]"
 # -> prints new template id + hash, and verifies stored onstart. RECORD BOTH.
 export TPL_HASH=<printed hash>
+```
+
+For the non-serverless template instead (vLLM alone, Docker-native boot):
+
+```bash
+python3 scripts/create_template.py --plain
 ```
 
 ## 3. Create endpoint + workergroup
