@@ -15,10 +15,12 @@ Strategy
                               PUT /api/v0/instances/request_logs/<id>/ -> result_url)
                               UNION vllm.log byte-size growth read over SSH. The
                               latter matters because onstart redirects vLLM output
-                              to /workspace/vllm.log, so the long HF weight
+                              to /var/log/portal/vllm.log, so the long HF weight
                               download (~19.5 GB on a fresh host) is invisible in
                               the daemon log and would otherwise look like a stall.
-  WIN  : PRIMARY — SSH internal probe: vLLM http://127.0.0.1:18020/health == 200
+                              With Xet disabled in the derived image, that log now
+                              also carries the hf download progress bar.
+  WIN  : PRIMARY — SSH internal probe: vLLM http://127.0.0.1:18000/health == 200
          AND pyworker benchmark max_perf > 0 AND latest error_msg empty
          (probed INSIDE the instance; external :3000 is often firewalled by
          hosts, and the gateway has no /v1/models or /health route at all).
@@ -50,9 +52,9 @@ SSH_OPTS = ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'BatchMode=yes',
 # One round trip inside the instance: vLLM health, pyworker gateway, vllm.log size.
 REMOTE_PROBE = (
     'h=$(curl -s -o /dev/null -w %{http_code} --max-time 3 '
-    'http://127.0.0.1:18020/health 2>/dev/null || echo 000); '
-    'p=$(grep -a -o \'"max_perf": [0-9.]*\' /workspace/pyworker.log 2>/dev/null | tail -1 | grep -a -o \'[0-9.]*$\'); '
-    'e=$(grep -a -o \'"error_msg": "[^"]*"\' /workspace/pyworker.log 2>/dev/null | tail -1); '
+    'http://127.0.0.1:18000/health 2>/dev/null || echo 000); '
+    'p=$(grep -a -o \'"max_perf": [0-9.]*\' /opt/pyw/pyworker.log 2>/dev/null | tail -1 | grep -a -o \'[0-9.]*$\'); '
+    'e=$(grep -a -o \'"error_msg": "[^"]*"\' /opt/pyw/pyworker.log 2>/dev/null | tail -1); '
     'if [ "$e" = \'"error_msg": ""\' ]; then e=1; else e=0; fi; '
     's=$(wc -c </var/log/portal/vllm.log 2>/dev/null || echo 0); '
     'echo "H=$h P=${p:-0} E=$e S=$s"'

@@ -26,7 +26,8 @@ Four components, created in order:
 
 Request path: client -> OpenAI-compatible proxy
 (`https://openai.vast.ai/<ENDPOINT_NAME>`) -> autoscaler queue ->
-ready worker's `:3000` gateway -> relay `:18000` -> vLLM `:18020`.
+ready worker's `:3000` gateway -> vLLM `:18000` (PyWorker targets `:18000`
+directly; the derived image serves vLLM there, so there is no relay).
 
 Scaling configuration used here (set on the endpoint / workergroup):
 
@@ -40,9 +41,23 @@ Scaling configuration used here (set on the endpoint / workergroup):
 | `max_queue_time` / `target_queue_time` | 30 / 10 s | Queue buffering before scale-up pressure |
 | GPU class | RTX 3090, 24 GB (`gpu_ram>=23`) | Only hosts able to fit the 27B weights |
 
-Cold-start latency budget: recruit 1-2 min + boot ~12 min
-(image pull ~5, ~19.5 GB weights ~5, engine load ~2). Warm requests serve
-in seconds.
+Cold-start latency budget: recruit 1-2 min + boot ~8-9 min with the derived
+image (image pull ~5, ~19.5 GB weights ~5, engine load ~2; PyWorker is
+pre-baked and Xet is disabled, which removes the runtime clone/install and
+makes the download observable). Warm requests serve in seconds.
+
+**0b. Build and push the derived image** (required — the upstream
+`syv-ai` image lacks every change below).
+
+```bash
+docker build -t ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless:latest .
+docker push ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless:latest
+```
+
+The image adds: vLLM on `:18000` (no socat), `HF_HUB_DISABLE_XET=1` for a
+visible download progress bar, and a pre-baked PyWorker tree at `/opt/pyw`
+(code + venv + nltk corpus) so boot skips clone/install. Keep `PYWORKER_SHA`
+in the Dockerfile and `onstart.sh` in sync.
 
 ## 1. Prerequisites
 
@@ -61,12 +76,12 @@ The complete spec lives in `scripts/create_template.py` as constants.
 Key values (kept in sync with the script):
 
 - name: `qwen38-27b-rtx3090-single-serverless`
-- image: `ghcr.io/syv-ai/qwen38-27b-rtx3090`, tag `latest`
+- image: `ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless`, tag `latest`
 - runtype: `ssh` (suppresses the image entrypoint; onstart drives all)
 - env: `-p 3000:3000 -e CTX=long -e PREFIX_CACHE=1 -e BACKEND=vllm -e SERVERLESS=true -e MODEL_NAME=qwen3.8-27b -e MODEL_HEALTH_ENDPOINT=/health`
 - extra_filters: verified + non-external + rentable + `direct_port_count >= 2`
 - onstart: repo `onstart.sh` verbatim. Stack:
-  vLLM `:18020` --(socat)--> `:18000` <-- PyWorker `:3000`.
+  vLLM `:18000` <-- PyWorker `:3000` (no relay; PyWorker targets `:18000`).
 
 Template updates are always delete + recreate (in-place `PUT` is rejected
 server-side); the hash changes every time.
@@ -159,8 +174,8 @@ manually created instance to `BOOT COMPLETE` (vLLM healthy, benchmark
 
 ## 7. Operate
 
-- **Cold start**: recruit 1-2 min + boot ~12 min. Warm requests serve in
-  seconds. Clients must retry proxy 504s.
+- **Cold start**: recruit 1-2 min + boot ~8-9 min (derived image). Warm
+  requests serve in seconds. Clients must retry proxy 504s.
 - **Hedge**: on cold start the autoscaler may boot up to `max_workers`
   boxes and cull the losers once one serves (~$0.10/cycle). Lowering
   `max_workers` removes redundancy.
@@ -177,7 +192,7 @@ manually created instance to `BOOT COMPLETE` (vLLM healthy, benchmark
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Benchmark `Cannot connect 127.0.0.1:18000` forever, vLLM healthy | socat relay never started (log dir missing at boot) | Rebuild template from current `onstart.sh` (relay logs to `/var/log/portal`, retries ~5 min). |
+| Benchmark `Cannot connect 127.0.0.1:18000` forever, vLLM healthy | vLLM is not listening on `:18000` | Confirm the template uses the derived image (it sets `PORT=18000`); the upstream image listens on `:18020`. |
 | Watchdog never declares a win on a working box | `:3000` gateway has no `/v1/models` or `/health` route (404 even when loaded) | Watchdog reads `max_perf` + `error_msg` via SSH instead. |
 | Benchmark fails once at boot, never retries | Benchmark runs once per log marker; stale error blocks capacity | Requires a clean boot. Manual repair: start relay, re-append the marker line to vllm.log, restart pyworker. |
 | `Endpoint 'X' not found` from proxy | Wrong API key (endpoint lookup is per-account) | Use the Vast key. |

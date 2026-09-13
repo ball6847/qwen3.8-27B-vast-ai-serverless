@@ -22,22 +22,26 @@ BASE = "https://console.vast.ai/api/v0"
 
 # --- Full template definition (explicit; edit here, not via clone) ---
 NAME = "qwen38-27b-rtx3090-single-serverless"
-IMAGE = "ghcr.io/syv-ai/qwen38-27b-rtx3090"
+# Derived image built from this repo's Dockerfile (FROM upstream + PORT=18000,
+# Xet disabled, pyworker pre-baked). CONFIRM this namespace is where you pushed
+# it before POSTing -- the upstream syv-ai image does NOT contain these changes.
+IMAGE = "ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless"
 TAG = "latest"
 HREF = "https://github.com/vast-ai/pyworker"
-REPO = "ghcr.io/syv-ai/qwen38-27b-rtx3090"
+REPO = "ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless"
 RUNTYPE = "ssh"  # ssh runtype suppresses the image entrypoint; onstart drives all
 ENV = ("-p 3000:3000 -e CTX=long -e PREFIX_CACHE=1 -e BACKEND=vllm "
        "-e SERVERLESS=true -e MODEL_NAME=qwen3.8-27b "
        "-e MODEL_HEALTH_ENDPOINT=/health")
 EXTRA_FILTERS = {"verified": {"eq": True}, "external": {"eq": False},
                  "rentable": {"eq": True}, "direct_port_count": {"gte": 2}}
-DESC = ("Serverless variant of qwen38-27b-rtx3090-single. Drives the image's "
-        "own entrypoint (ssh runtype suppresses it), relays vLLM :18020 -> "
-        ":18000 for the public Vast PyWorker on :3000 (pinned pyworker SHA + "
-        "SDK version), unsets the platform-injected VLLM_API_KEY so the "
-        "worker's readiness benchmark can reach the model. Scale-to-zero "
-        "ready: min_load=0, cold_workers=0, positive inactivity_timeout.")
+DESC = ("Serverless variant of qwen38-27b-rtx3090-single. Derived image serves "
+        "vLLM on :18000 (the port Vast PyWorker targets, no socat relay) and "
+        "bakes pyworker + venv so boot skips clone/install; Xet disabled so the "
+        "weight download shows progress. ssh runtype suppresses the entrypoint "
+        "so onstart drives the model server; VLLM_API_KEY is unset so the "
+        "readiness benchmark can reach the model. Scale-to-zero ready: "
+        "min_load=0, cold_workers=0, positive inactivity_timeout.")
 ONSTART_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "..", "onstart.sh")
 KEY_PATH = os.path.expanduser("~/.config/vastai/vast_api_key")
