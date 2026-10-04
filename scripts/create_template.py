@@ -66,7 +66,13 @@ MODES = {
         "disk": 50.0,
         "href": "https://github.com/vast-ai/pyworker",
         "repo": "ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless",
-        "env": ("-p 3000:3000 -e CTX=long -e PREFIX_CACHE=1 -e BACKEND=vllm "
+        # DFLASH2=0 skips the ~1 GB W4A16 DFlash2 drafter the base image's
+        # prepare.sh would otherwise fetch on first boot. This template runs
+        # CTX=long with the launcher's default SPEC=mtp, which never loads that
+        # drafter -- so the download is pure cold-start cost. Set DFLASH2=1 (or
+        # add SPEC=dflash2 here) if you want the DFlash2 path instead.
+        "env": ("-p 3000:3000 -e CTX=long -e PREFIX_CACHE=1 -e DFLASH2=0 "
+                "-e BACKEND=vllm "
                 "-e SERVERLESS=true -e MODEL_NAME=qwen3.8-27b "
                 "-e MODEL_HEALTH_ENDPOINT=/health"),
         "desc": (
@@ -90,15 +96,17 @@ MODES = {
         # onstart would have to start vLLM itself, detaching it from the log.
         "runtype": "args", "onstart": False,
         "use_ssh": False, "ssh_direct": False,
-        # 50 GB. prepare.sh needs ~22 GB of weights (19.5 base + ~1 fast
-        # variant + ~1 DFlash2 drafter) plus its requant outputs, on top of the
-        # ~10 GB image; 50 leaves ample headroom.
+        # 50 GB. prepare.sh needs ~20.5 GB of weights (19.5 base + ~1 fast
+        # variant; DFLASH2=0 in the env below skips the ~1 GB DFlash2 drafter)
+        # plus its requant outputs, on top of the ~10 GB image; 50 leaves ample
+        # headroom.
         "disk": 50.0,
         "href": "https://github.com/ball6847/qwen3.8-27b-vast-ai-serverless",
         "repo": "ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless",
         # No :3000 and no PyWorker env: nothing registers with VAST, so this is
         # just a vLLM box. Reach it on the host port mapped to :18000.
-        "env": ("-p 18000:18000 -e CTX=long -e PREFIX_CACHE=1"),
+        # DFLASH2=0 for the same reason as the serverless mode above.
+        "env": ("-p 18000:18000 -e CTX=long -e PREFIX_CACHE=1 -e DFLASH2=0"),
         "desc": (
             "Non-serverless variant: vLLM alone on :18000, no PyWorker, no "
             ":3000 gateway, nothing registered with VAST. Derived image adds "

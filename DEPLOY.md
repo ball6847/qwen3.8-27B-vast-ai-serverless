@@ -49,10 +49,22 @@ makes the download observable). Warm requests serve in seconds.
 **0b. Build and push the derived image** (required — the upstream
 `syv-ai` image lacks every change below).
 
+The base is pinned by digest in the `Dockerfile`, not by tag: upstream renamed
+`qwen38-27b-rtx3090` to `HyperQwen` and the old `:latest` moved under us twice.
+Bump it deliberately with
+`docker buildx imagetools inspect ghcr.io/syv-ai/hyperqwen:latest`.
+
 ```bash
-docker build -t ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless:latest .
-docker push ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless:latest
+docker buildx build --platform linux/amd64 --provenance=false \
+  -t ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless:latest --push .
 ```
+
+(`docker build` + `docker push` without `--platform` also works on an amd64
+host; on Apple Silicon the explicit `--platform linux/amd64` is required, since
+the base image is amd64-only. `--provenance=false` keeps the published artifact
+a plain single manifest, matching what this repo pushed before — without it
+buildx adds an attestation manifest, which shows up in GHCR as an extra
+`unknown/unknown` platform entry.)
 
 The image adds: vLLM on `:18000` (no socat), `HF_HUB_DISABLE_XET=1` for a
 visible download progress bar, and a pre-baked PyWorker tree at `/opt/pyw`
@@ -74,7 +86,7 @@ fetch, then engine load — is trackable with `vastai logs <INSTANCE_ID>`.
 ```bash
 python3 scripts/create_template.py --plain
 # -> image ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless:latest
-#    env   -p 18000:18000 -e CTX=long -e PREFIX_CACHE=1, disk 50 GB
+#    env   -p 18000:18000 -e CTX=long -e PREFIX_CACHE=1 -e DFLASH2=0, disk 50 GB
 #    record the printed id + hash; the hash changes on every recreate
 ```
 
@@ -119,7 +131,7 @@ Key values (kept in sync with the script):
 - name: `qwen38-27b-rtx3090-single-serverless`
 - image: `ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless`, tag `latest`
 - runtype: `ssh` (suppresses the image entrypoint; onstart drives all)
-- env: `-p 3000:3000 -e CTX=long -e PREFIX_CACHE=1 -e BACKEND=vllm -e SERVERLESS=true -e MODEL_NAME=qwen3.8-27b -e MODEL_HEALTH_ENDPOINT=/health`
+- env: `-p 3000:3000 -e CTX=long -e PREFIX_CACHE=1 -e DFLASH2=0 -e BACKEND=vllm -e SERVERLESS=true -e MODEL_NAME=qwen3.8-27b -e MODEL_HEALTH_ENDPOINT=/health`
 - extra_filters: verified + non-external + rentable + `direct_port_count >= 2`
 - onstart: repo `onstart.sh` verbatim. Stack:
   vLLM `:18000` <-- PyWorker `:3000` (no relay; PyWorker targets `:18000`).

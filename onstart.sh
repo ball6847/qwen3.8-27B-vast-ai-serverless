@@ -53,10 +53,13 @@ esac
 export SERVERLESS
 
 # --- 1) Model server ----------------------------------------------------------
-# entrypoint.sh single = docker/prepare.sh (idempotent: fetches
+# entrypoint.sh single = docker/prepare.sh (idempotent, flock-serialised: fetches
 #   dbirks/Qwen3.8-27B-W4A16-AutoRound into the /app/models volume if absent)
+#                     + single-user/select_model.sh (prefers the -fast variant)
 #                     + verify.sh --no-server (aborts boot on broken patches)
-#                     + single-user/start_qwen.sh (honors CTX / PREFIX_CACHE)
+#                     + single-user/start_qwen.sh (honors CTX / PREFIX_CACHE,
+#                       validates CTX/SPEC via resolve_config.sh and prints a
+#                       redacted [effective-config] block to this log)
 mkdir -p /var/log/portal
 
 if [ "$SERVERLESS" = "1" ]; then

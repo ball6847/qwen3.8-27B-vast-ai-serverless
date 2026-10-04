@@ -74,8 +74,9 @@ Endpoint lookup is per-account: a key belonging to another account returns
 ghcr.io/ball6847/qwen3.8-27b-vast-ai-serverless:latest
 ```
 
-Extends [`ghcr.io/syv-ai/qwen38-27b-rtx3090`](https://github.com/syv-ai/qwen38-27b-rtx3090)
-(vLLM 0.28.0, torch 2.13, CUDA 13.0) with three cold-start changes:
+Extends [`ghcr.io/syv-ai/hyperqwen`](https://github.com/syv-ai/HyperQwen)
+(vLLM 0.30.0, torch 2.13, CUDA 13.0.3), pinned by digest in the `Dockerfile`
+with three cold-start changes:
 
 1. **vLLM on `:18000`** — the port PyWorker targets, so the socat relay the
    upstream image needs is gone.
@@ -119,7 +120,9 @@ block renting an ineligible offer by hand, so confirm the column yourself.
 | `PORT` | `18000` | vLLM listen port (image default) |
 | `CTX` | `fast` (image); template sets `long` | Context tier (`fast` / `long` / `huge`) |
 | `PREFIX_CACHE` | `1` (template) | vLLM prefix caching |
-| `HF_TOKEN` | `1` | Lifts HF per-IP rate limits on the weight download |
+| `DFLASH2` | `0` (template) | Passed to the base image's `docker/prepare.sh`, which downloads a ~1 GB W4A16 DFlash2 drafter unless this is `0`. We run `CTX=long` with the launcher's default `SPEC=mtp`, which never loads that drafter, so skipping it is free cold-start savings. Set `DFLASH2=1` (or drop the var) only if you switch to `SPEC=dflash2`. |
+| `BACKEND` | `vllm` (serverless template) | Read by **PyWorker**, not by the image — it selects the worker module. It also makes a non-empty `HF_TOKEN` mandatory, which is why `onstart.sh` defaults one. |
+| `HF_TOKEN` | `1` | Not a real token, and not needed to download the (public) weights: it exists because the pinned PyWorker hard-refuses to start when `BACKEND` is set and `HF_TOKEN` is empty. `huggingface_hub` treats `1` as unauthenticated and the download proceeds. Set a real read token if you want to genuinely lift the per-IP rate limits. |
 
 ## Layout
 
@@ -138,8 +141,8 @@ The serving image this repo derives from — the quantized Qwen3.8-27B weights,
 the vLLM patches, requant scripts and benchmarks behind the ~1,000 tok/s at 64
 concurrent figure — is the work of **[syv-ai](https://github.com/syv-ai)**:
 
-- Repository: <https://github.com/syv-ai/qwen38-27b-rtx3090>
-- Base image: [`ghcr.io/syv-ai/qwen38-27b-rtx3090`](https://github.com/syv-ai/qwen38-27b-rtx3090/pkgs/container/qwen38-27b-rtx3090)
+- Repository: <https://github.com/syv-ai/HyperQwen> (formerly `qwen38-27b-rtx3090`)
+- Base image: [`ghcr.io/syv-ai/hyperqwen`](https://github.com/syv-ai/HyperQwen/pkgs/container/hyperqwen)
 - Licence: Apache-2.0
 
 This repo adds only the Vast.ai serverless packaging on top (port `:18000`,

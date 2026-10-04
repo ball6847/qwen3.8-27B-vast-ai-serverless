@@ -3,10 +3,20 @@
 #   1. vLLM on :18000 (the port PyWorker expects) -> no socat relay
 #   2. Xet disabled -> hf download shows a real tqdm progress bar
 #   3. PyWorker code + venv baked in -> boot skips git clone + pip install
-FROM ghcr.io/syv-ai/qwen38-27b-rtx3090:latest
+#
+# The base is pinned BY DIGEST on purpose. Upstream renamed itself to HyperQwen
+# and now publishes ghcr.io/syv-ai/hyperqwen; the tag this file used to follow
+# (qwen38-27b-rtx3090:latest) had already moved twice under a build, which is
+# exactly the drift a digest pin makes visible. To bump deliberately:
+#   docker buildx imagetools inspect ghcr.io/syv-ai/hyperqwen:latest
+# then paste the new index digest into the FROM line and update the note below.
+#
+# ghcr.io/syv-ai/hyperqwen:latest as of 2026-10-04 = sha256:34c2e3a4...1eefd55
+# (vLLM 0.30.0, torch 2.13.0+cu130, revision e1459c7, built 2026-09-30T18:03Z)
+FROM ghcr.io/syv-ai/hyperqwen@sha256:34c2e3a408e2a6ec94d3c6434ff14550b4525301f1ad6c06e40e409db1eefd55
 
 # Re-point the OCI provenance labels at THIS repo. The upstream image sets
-# org.opencontainers.image.source=https://github.com/syv-ai/qwen38-27b-rtx3090,
+# org.opencontainers.image.source=https://github.com/syv-ai/HyperQwen,
 # and GitHub links a GHCR package to a repository by reading exactly that label.
 # Without these overrides the derived image keeps the upstream source, GHCR
 # cannot match it to a repo you own, and the package stays user-scoped -- which
