@@ -1,0 +1,21 @@
+# gitleaks configuration for qwen3.8-27B-vast-ai-serverless.
+#
+# Extends the built-in default rules. The allowlist below covers the two
+# public identifiers in this repo that merely *look* like secrets:
+#   - the OCI image digest pinning the upstream base image (Dockerfile FROM ...@sha256:...)
+#   - the git commit SHA pinning the pre-baked PyWorker checkout (onstart.sh PYWORKER_SHA)
+# Both are publicly resolvable, and the 8.30.1 baseline scan flags neither;
+# the allowlist is defense-in-depth against future gitleaks updates that
+# start matching long hex strings. Keep it narrow and anchored.
+
+title = "qwen3.8-27B-vast-ai-serverless"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Public hex identifiers (image digest, git commit SHA)"
+regexes = [
+  '^[a-f0-9]{64}$', # OCI image digest
+  '^[a-f0-9]{40}$', # git commit SHA
+]

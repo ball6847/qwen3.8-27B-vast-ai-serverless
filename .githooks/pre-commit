@@ -1,0 +1,9 @@
+#!/bin/sh
+# Pre-commit: scan only staged changes (fast feedback).
+# Active on any clone via `git config core.hookspath .githooks`.
+# If gitleaks is missing, warn and continue; flip to `exit 1` to fail closed.
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "gitleaks: not installed - skipping secret scan (brew install gitleaks)" >&2
+  exit 0
+fi
+gitleaks protect --staged --no-banner --log-level warn

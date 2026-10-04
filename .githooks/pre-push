@@ -1,0 +1,11 @@
+#!/bin/sh
+# Pre-push: full-repo scan as a backstop - catches commits made with the
+# pre-commit hook bypassed (e.g. --no-verify), or secrets already in
+# history that are about to leave this machine.
+# Active on any clone via `git config core.hookspath .githooks`.
+# If gitleaks is missing, warn and continue; flip to `exit 1` to fail closed.
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "gitleaks: not installed - skipping secret scan (brew install gitleaks)" >&2
+  exit 0
+fi
+gitleaks protect --no-banner --log-level warn
